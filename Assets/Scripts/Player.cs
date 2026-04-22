@@ -4,101 +4,85 @@ using UnityEngine;
 
 public class Player : MonoBehaviour
 {
-    //how to define a variable
-    //1. access modifier: public or private
-    //2. data type: int, float, bool, string
-    //3. variable name: camelCase
-    //4. value: optional
-
     private float playerSpeed;
     private float horizontalInput;
     private float verticalInput;
-
     private float horizontalScreenLimit = 9.5f;
 
-
     public GameObject bulletPrefab;
+    public GameObject shieldObject;
+    public AudioClip powerupSound;
+    public AudioClip powerdownSound;
+
+    private bool shieldActive = false;
+    private AudioSource audioSource;
 
     void Start()
     {
         playerSpeed = 8f;
-        //This function is called at the start of the game
-        
+        audioSource = GetComponent<AudioSource>();
     }
 
+    void Update()
+    {
+        Movement();
+        Shooting();
+    }
 
     void Shooting()
     {
-        //if the player presses the SPACE key, create a projectile
-        if(Input.GetKeyDown(KeyCode.Space))
+        if (Input.GetKeyDown(KeyCode.Space))
         {
             Instantiate(bulletPrefab, transform.position + new Vector3(0, 1, 0), Quaternion.identity);
         }
     }
 
-
-    void Update()
-    {
-        //This function is called every frame; 60 frames/second
-        Movement();
-        Shooting();
-
-    }
-
-   
-
     void Movement()
     {
-        //Read the input from the player
         horizontalInput = Input.GetAxis("Horizontal");
         verticalInput = Input.GetAxis("Vertical");
-        //Move the player
+
         transform.Translate(new Vector3(horizontalInput, verticalInput, 0) * Time.deltaTime * playerSpeed);
-        //Player leaves the screen horizontally
+
         if (transform.position.x > horizontalScreenLimit)
             transform.position = new Vector3(-horizontalScreenLimit, transform.position.y, 0);
         else if (transform.position.x < -horizontalScreenLimit)
             transform.position = new Vector3(horizontalScreenLimit, transform.position.y, 0);
 
-        // Hard clamp vertical
         transform.position = new Vector3(
             transform.position.x,
             Mathf.Clamp(transform.position.y, -3f, 0f),
             0
-    );
+        );
     }
-}
 
-public void OnTriggerEnter2D(Collider2D whatDidIHit)
-{
-    if (whatDidIHit.tag == "shield")
+    void OnTriggerEnter2D(Collider2D whatDidIHit)
     {
-        Destroy(gameObject: whatDidIHit.gameObject);
-        int whichPowerup = Random.Range(1, 5);
-        GameManager.PlaySound(1);
-        switch (whichPowerup)
+        if (whatDidIHit.tag == "shield")
         {
-            case 1:
-                //Picked up speed
-                speed = 10f;
-                StartCoroutine(SpeedPowerDown());
-                thrusterPrefab.SetActive(true);
-                GameManager.ManagePowerupText(1);
-                break;
-            case 2:
-                //Picked up shield
-                //Do I already have a shield?
-                //If yes: do nothing
-                //If not: activate the shield's visibility
-                GameManager.ManagePowerupText(4);
-                break;
-            default:
-                break;
+            Destroy(whatDidIHit.gameObject);
+            shieldActive = true;
+
+            if (audioSource != null && powerupSound != null)
+                audioSource.PlayOneShot(powerupSound);
+
+            if (shieldObject != null)
+            {
+                shieldObject.SetActive(true);
+                StartCoroutine(ShieldTimer());
+            }
         }
     }
-}
 
-void Destroy(GameObject gameObject)
-{
-    throw new System.NotImplementedException();
+    IEnumerator ShieldTimer()
+    {
+        yield return new WaitForSeconds(5f);
+        shieldActive = false;
+
+        if (audioSource != null && powerdownSound != null)
+            audioSource.PlayOneShot(powerdownSound);
+
+        if (shieldObject != null)
+            shieldObject.SetActive(false);
+    }
 }
